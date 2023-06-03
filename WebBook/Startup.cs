@@ -1,4 +1,7 @@
+using Domain.Entity;
 using Infrastructure.Data;
+using Infrastructure.IRepository;
+using Infrastructure.IRepository.ServicesRepository;
 using Infrastructure.ViewModels;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -28,10 +31,46 @@ namespace WebBook
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllersWithViews();
+            services.AddSession();
+
             services.AddDbContext<FreeBookDbContext>(options =>
             options.UseSqlServer(Configuration.GetConnectionString("BookConnection")));
-            services.AddIdentity<ApplicationUser, IdentityRole>().AddEntityFrameworkStores<FreeBookDbContext>();
+            services.AddIdentity<ApplicationUser, IdentityRole>(options=>
+            { // first way
+                options.Password.RequireDigit = false;
+                options.Password.RequireLowercase = false;
+                options.Password.RequireUppercase = false;
+                options.Password.RequireNonAlphanumeric = false;
+                options.Password.RequiredLength = 5;
+                options.Password.RequiredUniqueChars = 0;
 
+            }).AddEntityFrameworkStores<FreeBookDbContext>();
+
+
+
+
+            services.ConfigureApplicationCookie(option =>
+            {
+                option.LoginPath = "/Admin";
+                option.AccessDeniedPath = "/Admin/Home/Denied";
+            });
+
+            // service locator for Repository pattern 
+            services.AddScoped<IServicesRepository<Category>, ServicesCategory>();
+            services.AddScoped<IServicesRepositoryLog<LogCategory>, ServicesLogCategory>();
+
+
+
+            // second way
+            //services.Configure<IdentityOptions>(options =>
+            //{
+            //    options.Password.RequireDigit = false;
+            //    options.Password.RequireLowercase = false;
+            //    options.Password.RequireUppercase = false;
+            //    options.Password.RequireNonAlphanumeric = false;
+            //    options.Password.RequiredLength = 5;
+            //    options.Password.RequiredUniqueChars = 0;
+            //});
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -51,7 +90,8 @@ namespace WebBook
             app.UseStaticFiles();
 
             app.UseRouting();
-
+            app.UseSession();
+            app.UseAuthentication();
             app.UseAuthorization();
 
             app.UseEndpoints(endpoints =>
